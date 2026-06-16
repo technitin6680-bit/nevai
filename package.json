@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "latest",
-    "@prisma/client": "latest",
     "@react-pdf/renderer": "latest",
     "class-variance-authority": "latest",
     "clsx": "latest",
@@ -41,7 +40,7 @@
     "eslint-config-next": "latest",
     "postcss": "latest",
     "prettier": "latest",
-    "prisma": "latest",
+    "prisma": "^6.19.3",
     "tailwindcss": "latest",
     "typescript": "latest"
   },
