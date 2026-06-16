@@ -1,0 +1,242 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleName {
+  CLIENT
+  ADMIN
+}
+
+enum QuoteRequestStatus {
+  NEW
+  IN_REVIEW
+  ESTIMATE_SENT
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum ContactSubmissionStatus {
+  NEW
+  READ
+  REPLIED
+  ARCHIVED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts        Account[]
+  sessions        Session[]
+  roles           Role[]
+  profile         Profile?
+  quoteRequests   QuoteRequest[]
+  pdfEstimates    PdfEstimate[]      @relation("EstimateCreator")
+  testimonials    Testimonial[]
+  portfolioItems  PortfolioItem[]    @relation("PortfolioAuthor")
+  contactMessages ContactSubmission[]
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, token])
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  name      RoleName
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([name])
+}
+
+model Profile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  companyName String?
+  phone       String?
+  website     String?
+  address     String?
+  city        String?
+  state       String?
+  country     String?
+  postalCode  String?
+  bio         String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model QuoteRequest {
+  id          String             @id @default(cuid())
+  userId      String?
+  name        String
+  email       String
+  phone       String?
+  companyName String?
+  projectType String?
+  budget      String?
+  timeline    String?
+  message     String             @db.Text
+  status      QuoteRequestStatus @default(NEW)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  selectedFeatures SelectedFeature[]
+  pdfEstimates     PdfEstimate[]
+
+  @@index([userId])
+  @@index([email])
+  @@index([status])
+}
+
+model SelectedFeature {
+  id             String   @id @default(cuid())
+  quoteRequestId String
+  name           String
+  description    String?  @db.Text
+  estimatedCost  Decimal? @db.Decimal(10, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  quoteRequest QuoteRequest @relation(fields: [quoteRequestId], references: [id], onDelete: Cascade)
+
+  @@index([quoteRequestId])
+}
+
+model PdfEstimate {
+  id             String   @id @default(cuid())
+  quoteRequestId String
+  createdById    String?
+  title          String
+  fileUrl        String?
+  subtotal       Decimal  @default(0) @db.Decimal(10, 2)
+  tax            Decimal  @default(0) @db.Decimal(10, 2)
+  total          Decimal  @default(0) @db.Decimal(10, 2)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  quoteRequest QuoteRequest @relation(fields: [quoteRequestId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("EstimateCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([quoteRequestId])
+  @@index([createdById])
+}
+
+model ContactSubmission {
+  id        String                  @id @default(cuid())
+  userId    String?
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String                  @db.Text
+  status    ContactSubmissionStatus @default(NEW)
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([email])
+  @@index([status])
+}
+
+model Testimonial {
+  id          String   @id @default(cuid())
+  userId      String?
+  authorName  String
+  authorTitle String?
+  companyName String?
+  content     String   @db.Text
+  rating      Int?
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([isPublished])
+}
+
+model PortfolioItem {
+  id          String   @id @default(cuid())
+  authorId    String?
+  title       String
+  slug        String   @unique
+  summary     String?
+  description String?  @db.Text
+  clientName  String?
+  imageUrl    String?
+  projectUrl  String?
+  isPublished Boolean  @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author User? @relation("PortfolioAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([authorId])
+  @@index([isPublished])
+  @@index([slug])
+}
